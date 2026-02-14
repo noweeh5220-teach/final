@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
-// 1. 타입을 명확하게 정의합니다.
 interface ProgressType {
   unit: number;
   chapter: number;
@@ -13,7 +12,6 @@ interface ProgressType {
 }
 
 export default function LearnPage() {
-  // 2. 상태 선언
   const [currentProgress, setCurrentProgress] = useState<ProgressType>({
     unit: 1,
     chapter: 1,
@@ -28,10 +26,9 @@ export default function LearnPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const MAX_HEARTS = 25;
-  const REFILL_TIME = 10 * 60 * 1000; // 10분
+  const REFILL_TIME = 10 * 60 * 1000;
 
   useEffect(() => {
-    // 로컬 스토리지 데이터 로드
     const saved = localStorage.getItem("duo_progress");
     let initialProgress: ProgressType = { 
       unit: 1, 
@@ -50,7 +47,6 @@ export default function LearnPage() {
       }
     }
 
-    // 하트 충전 타이머 로직
     const timer = setInterval(() => {
       if (initialProgress.hearts < MAX_HEARTS && initialProgress.lastHeartTime) {
         const now = Date.now();
@@ -71,7 +67,6 @@ export default function LearnPage() {
           localStorage.setItem("duo_progress", JSON.stringify(updated));
         }
 
-        // 남은 시간 계산용
         const remaining = REFILL_TIME - (diff % REFILL_TIME);
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
@@ -100,13 +95,11 @@ export default function LearnPage() {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-white pb-24 font-sans text-black select-none">
-      {/* 헤더 */}
       <header className="sticky top-0 z-[100] bg-white border-b border-gray-100 px-4 py-2">
         <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-lg font-black tracking-tighter cursor-default">LEARN</h1>
+          <h1 className="text-lg font-black tracking-tighter cursor-default italic">VOCAB MASTER</h1>
           <div className="flex gap-4 items-center font-bold text-sm relative">
             <div className="flex items-center gap-1">🔥 {currentProgress.streak}</div>
-            
             <div 
               className="flex items-center gap-1 cursor-pointer bg-gray-50 px-2 py-1 rounded-lg active:scale-95 transition-all"
               onClick={(e) => { e.stopPropagation(); setShowHeartInfo(!showHeartInfo); }}
@@ -136,33 +129,48 @@ export default function LearnPage() {
                   setActiveTooltip(`unit-${unit}`);
                 }
               }}
-              className={`p-4 rounded-xl mb-8 border transition-all relative cursor-pointer ${
+              className={`p-4 rounded-xl mb-10 border transition-all relative cursor-pointer ${
                 unit > currentProgress.unit ? "bg-gray-50 border-gray-100 text-gray-300" : "bg-black border-black text-white"
               }`}
             >
               <h2 className="text-[10px] font-black opacity-70">UNIT {unit}</h2>
               <p className="text-base font-black italic">
-                {unit > currentProgress.unit ? "Locked Unit" : `Essential Vocab #${unit}`}
+                {unit > currentProgress.unit ? "Locked Unit" : `Essential Vocab Section #${unit}`}
               </p>
               
               {activeTooltip === `unit-${unit}` && (
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-[11px] px-3 py-1 rounded-lg font-bold z-50 animate-in zoom-in">
-                  아직 잠겨있습니다
+                  이전 유닛을 완료하세요
                   <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-500 rotate-45"></div>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-6">
               {chapters.map((chapter, idx) => {
                 const isLocked = unit > currentProgress.unit || (unit === currentProgress.unit && chapter > currentProgress.chapter);
                 const chapterKey = `${unit}-${chapter}`;
-                const offsets = [0, 25, 45, 25, 0, -25, -45, -25];
+                
+                // 굴곡진 경로 표현
+                const offsets = [0, 30, 55, 30, 0, -30, -55, -30];
                 const translateX = offsets[idx % offsets.length];
 
-                const isReview = (idx + 1) % 5 === 0;
-                const modeName = isReview ? "복습 도전" : (idx % 2 === 0 ? "단어 학습" : "실력 테스트");
-                const modeQuery = isReview ? "review" : (idx % 2 === 0 ? "learn" : "test");
+                // 🎯 챕터별 모드 설정 (유닛 페이지와 동일한 로직)
+                let modeName = "";
+                let modeQuery = "";
+                const isCumulativeReview = chapter % 5 === 0; // 5, 10... 누적 복습
+                const isOddChapter = chapter % 2 !== 0;      // 1, 3, 5... (학습 챕터)
+
+                if (isCumulativeReview) {
+                  modeName = "유닛 누적 복습";
+                  modeQuery = "review";
+                } else if (!isOddChapter) {
+                  modeName = "직전 단어 테스트";
+                  modeQuery = "test";
+                } else {
+                  modeName = "새 단어 학습";
+                  modeQuery = "learn";
+                }
 
                 return (
                   <div key={chapterKey} style={{ transform: `translateX(${translateX}px)` }} className="relative">
@@ -183,18 +191,20 @@ export default function LearnPage() {
                       className="relative cursor-pointer"
                     >
                       {isLocked ? (
-                        <div className="w-12 h-12 rounded-full bg-gray-50 border-b-4 border-gray-200 flex items-center justify-center text-gray-300">
-                          <span className="text-xs">🔒</span>
+                        <div className="w-14 h-14 rounded-full bg-gray-50 border-b-4 border-gray-200 flex items-center justify-center text-gray-300">
+                          <span className="text-lg">🔒</span>
                         </div>
                       ) : (
                         <div className={`
-                          w-12 h-12 rounded-full flex items-center justify-center 
-                          text-sm font-black border-b-4 transition-all active:translate-y-0.5 active:border-b-0
+                          w-14 h-14 rounded-full flex items-center justify-center 
+                          text-lg font-black border-b-4 transition-all active:translate-y-0.5 active:border-b-0
                           ${unit === currentProgress.unit && chapter === currentProgress.chapter
-                            ? "bg-black border-gray-700 text-white"
-                            : "bg-white border-black text-black"}
+                            ? "bg-black border-gray-700 text-white ring-4 ring-black ring-offset-2"
+                            : isCumulativeReview 
+                              ? "bg-orange-400 border-orange-600 text-white" 
+                              : "bg-white border-black text-black"}
                         `}>
-                          {isReview ? "★" : chapter}
+                          {isCumulativeReview ? "★" : chapter}
                         </div>
                       )}
 
@@ -213,10 +223,11 @@ export default function LearnPage() {
         ))}
       </main>
 
-      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 py-3 z-[100]">
-        <div className="max-w-md mx-auto flex justify-around items-center opacity-70">
-          <button className="text-xl grayscale-0">🏠</button>
-          <button className="text-xl">👤</button>
+      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 py-4 z-[100]">
+        <div className="max-w-md mx-auto flex justify-around items-center">
+          <button className="text-2xl hover:scale-110 transition-transform">🏠</button>
+          <button className="text-2xl hover:scale-110 transition-transform opacity-30">👤</button>
+          <button className="text-2xl hover:scale-110 transition-transform opacity-30">🏆</button>
         </div>
       </nav>
     </div>
