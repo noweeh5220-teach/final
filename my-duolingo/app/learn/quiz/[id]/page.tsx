@@ -231,7 +231,7 @@ export default function QuizPage() {
 
   if (showReviewIntro) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="text-9xl mb-8">🎯</div>
+      <div className="text-6xl mb-8">🎯</div>
       <h1 className="text-4xl font-black text-orange-500 mb-6">틀린 문제를 복습해봐요!</h1>
       <button onClick={() => {
         setCurrentQuestions([...failedQuestions]);
@@ -247,7 +247,7 @@ export default function QuizPage() {
 
   if (isFinished) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="text-9xl mb-8">🏆</div>
+      <div className="text-5xl mb-8">🏆</div>
       <h1 className="text-4xl font-black text-[#58CC02] mb-6">학습 완료!</h1>
       <button onClick={() => router.push("/learn")} className="w-full max-w-sm bg-[#58CC02] text-white py-4 rounded-2xl font-bold text-xl shadow-[0_5px_0_#46A302]">계속하기</button>
     </div>
@@ -262,7 +262,7 @@ export default function QuizPage() {
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setIsHeartModalOpen(false)} />
           <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative animate-[combo-pop_0.4s_ease-out] flex flex-col items-center text-center">
-            <div className="text-8xl mb-4">💔</div>
+            <div className="text-5xl mb-4">💔</div>
             <h2 className="text-3xl font-black text-[#4B4B4B] mb-2">하트가 바닥났어요!</h2>
             <p className="text-gray-500 font-bold text-lg mb-1">다음 하트 충전까지</p>
             <div className="text-[#FF4B4B] text-4xl font-black mb-8 tabular-nums">{timeLeft}</div>
@@ -276,7 +276,7 @@ export default function QuizPage() {
         <div className="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 text-center animate-[flash_0.5s_ease-out]">
           <div className="z-10 animate-[combo-pop_0.6s_cubic-bezier(0.34,1.56,0.64,1)_forwards]">
             <div className="text-9xl mb-6">🔥</div>
-            <h1 className="text-6xl font-black text-orange-500 mb-4 italic tracking-tighter">5 COMBO STREAK!</h1>
+            <h1 className="text-4xl font-black text-orange-500 mb-4 italic tracking-tighter">5 COMBO STREAK!</h1>
           </div>
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {confettiPieces.map((p) => (
