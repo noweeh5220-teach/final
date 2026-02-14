@@ -3,8 +3,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
+// 1. 타입을 명확하게 정의합니다.
+interface ProgressType {
+  unit: number;
+  chapter: number;
+  hearts: number;
+  streak: number;
+  lastHeartTime: number | null;
+}
+
 export default function LearnPage() {
-  const [currentProgress, setCurrentProgress] = useState({
+  // 2. 상태 선언
+  const [currentProgress, setCurrentProgress] = useState<ProgressType>({
     unit: 1,
     chapter: 1,
     hearts: 25,
@@ -20,16 +30,27 @@ export default function LearnPage() {
   const MAX_HEARTS = 25;
   const REFILL_TIME = 10 * 60 * 1000; // 10분
 
-  // 로컬 스토리지 데이터 불러오기 및 타이머 로직
   useEffect(() => {
+    // 로컬 스토리지 데이터 로드
     const saved = localStorage.getItem("duo_progress");
-    let initialProgress = { unit: 1, chapter: 1, hearts: 25, streak: 0, lastHeartTime: null };
+    let initialProgress: ProgressType = { 
+      unit: 1, 
+      chapter: 1, 
+      hearts: 25, 
+      streak: 0, 
+      lastHeartTime: null 
+    };
     
     if (saved) {
-      initialProgress = JSON.parse(saved);
-      setCurrentProgress(initialProgress);
+      try {
+        initialProgress = JSON.parse(saved);
+        setCurrentProgress(initialProgress);
+      } catch (e) {
+        console.error("Failed to parse progress", e);
+      }
     }
 
+    // 하트 충전 타이머 로직
     const timer = setInterval(() => {
       if (initialProgress.hearts < MAX_HEARTS && initialProgress.lastHeartTime) {
         const now = Date.now();
@@ -40,13 +61,17 @@ export default function LearnPage() {
           const newHearts = Math.min(MAX_HEARTS, initialProgress.hearts + refillAmount);
           const newTime = newHearts === MAX_HEARTS ? null : initialProgress.lastHeartTime + (refillAmount * REFILL_TIME);
           
-          const updated = { ...initialProgress, hearts: newHearts, lastHeartTime: newTime };
+          const updated: ProgressType = { 
+            ...initialProgress, 
+            hearts: newHearts, 
+            lastHeartTime: newTime 
+          };
           initialProgress = updated;
           setCurrentProgress(updated);
           localStorage.setItem("duo_progress", JSON.stringify(updated));
         }
 
-        // 남은 시간 계산
+        // 남은 시간 계산용
         const remaining = REFILL_TIME - (diff % REFILL_TIME);
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
@@ -62,6 +87,7 @@ export default function LearnPage() {
         setShowHeartInfo(false);
       }
     };
+
     window.addEventListener("click", handleClickOutside);
     return () => {
       clearInterval(timer);
@@ -81,7 +107,6 @@ export default function LearnPage() {
           <div className="flex gap-4 items-center font-bold text-sm relative">
             <div className="flex items-center gap-1">🔥 {currentProgress.streak}</div>
             
-            {/* 하트 클릭 시 시간 표시 */}
             <div 
               className="flex items-center gap-1 cursor-pointer bg-gray-50 px-2 py-1 rounded-lg active:scale-95 transition-all"
               onClick={(e) => { e.stopPropagation(); setShowHeartInfo(!showHeartInfo); }}
@@ -104,7 +129,6 @@ export default function LearnPage() {
       <main className="max-w-md mx-auto px-4 pt-6">
         {units.map((unit) => (
           <section key={unit} className="mb-12">
-            {/* 유닛 헤더 - 클릭 시 잠금 메시지 */}
             <div 
               onClick={(e) => {
                 if (unit > currentProgress.unit) {
@@ -121,7 +145,6 @@ export default function LearnPage() {
                 {unit > currentProgress.unit ? "Locked Unit" : `Essential Vocab #${unit}`}
               </p>
               
-              {/* 유닛 잠금 말풍선 */}
               {activeTooltip === `unit-${unit}` && (
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-[11px] px-3 py-1 rounded-lg font-bold z-50 animate-in zoom-in">
                   아직 잠겨있습니다
@@ -134,7 +157,6 @@ export default function LearnPage() {
               {chapters.map((chapter, idx) => {
                 const isLocked = unit > currentProgress.unit || (unit === currentProgress.unit && chapter > currentProgress.chapter);
                 const chapterKey = `${unit}-${chapter}`;
-                
                 const offsets = [0, 25, 45, 25, 0, -25, -45, -25];
                 const translateX = offsets[idx % offsets.length];
 
@@ -144,8 +166,6 @@ export default function LearnPage() {
 
                 return (
                   <div key={chapterKey} style={{ transform: `translateX(${translateX}px)` }} className="relative">
-                    
-                    {/* 💬 말풍선 로직 (학습/테스트 vs 잠금) */}
                     {activeTooltip === chapterKey && (
                       <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-[90] animate-in fade-in zoom-in duration-150">
                         <div className={`${isLocked ? "bg-gray-400" : "bg-black"} text-white text-[11px] font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex flex-col items-center`}>
@@ -178,7 +198,6 @@ export default function LearnPage() {
                         </div>
                       )}
 
-                      {/* 열린 챕터이면서 말풍선이 떠있을 때만 이동 링크 활성화 */}
                       {activeTooltip === chapterKey && !isLocked && (
                         <Link 
                           href={`/learn/quiz/${unit}?chapter=${chapter}&mode=${modeQuery}`}
