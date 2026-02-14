@@ -1,235 +1,253 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { words, getWordsByChapter, Word } from "../../quiz/words";
 
-interface ProgressType {
-  unit: number;
-  chapter: number;
-  hearts: number;
-  streak: number;
-  lastHeartTime: number | null;
+type QuestionType = "choice_meaning" | "choice_word" | "input_word" | "scramble" | "matching";
+
+interface QuizQuestion { 
+  id: number; 
+  type: QuestionType; 
+  q: string; 
+  a: string; 
+  options?: string[]; 
+  meaningHint?: string; 
+  letters?: string[];
+  pairs?: { en: string; ko: string }[];
 }
 
-export default function LearnPage() {
-  const [currentProgress, setCurrentProgress] = useState<ProgressType>({
-    unit: 1,
-    chapter: 1,
-    hearts: 25,
-    streak: 0,
-    lastHeartTime: null,
+function generateQuestions(unitId: number, chapterId: number): QuizQuestion[] {
+  let targetWords: Word[] = [];
+  
+  if (chapterId % 5 === 0) {
+    for (let i = 1; i <= chapterId; i++) {
+      targetWords = [...targetWords, ...getWordsByChapter(unitId, i)];
+    }
+    targetWords = targetWords.sort(() => Math.random() - 0.5).slice(0, 15);
+  } 
+  else if (chapterId % 2 === 0) {
+    targetWords = getWordsByChapter(unitId, chapterId - 1);
+  } 
+  else {
+    targetWords = getWordsByChapter(unitId, chapterId);
+  }
+
+  const isTestMode = (chapterId % 2 === 0 || chapterId % 5 === 0);
+
+  return targetWords.map((word) => {
+    const commonProps = { meaningHint: word.meaning };
+    const others = words.filter((w) => w.word !== word.word).sort(() => Math.random() - 0.5);
+    
+    if (isTestMode) {
+      const typeSeed = Math.random() * 3;
+      if (typeSeed < 1) {
+        return { 
+          ...commonProps, 
+          id: word.id, 
+          type: "scramble", 
+          q: word.meaning, 
+          a: word.word, 
+          letters: word.word.split("").sort(() => Math.random() - 0.5) 
+        };
+      }
+      if (typeSeed < 2) {
+        const matchSet = [word, ...others.slice(0, 3)].sort(() => Math.random() - 0.5);
+        return { 
+          ...commonProps, 
+          id: word.id, 
+          type: "matching", 
+          q: "알맞은 짝을 찾으세요", 
+          a: "done", 
+          pairs: matchSet.map(w => ({ en: w.word, ko: w.meaning })) 
+        };
+      }
+      return { ...commonProps, id: word.id, type: "input_word", q: word.meaning, a: word.word.toLowerCase() };
+    }
+    
+    return { 
+      ...commonProps, 
+      id: word.id, 
+      type: "choice_meaning", 
+      q: word.word, 
+      a: word.meaning, 
+      options: [word.meaning, ...others.slice(0, 3).map(o => o.meaning)].sort(() => Math.random() - 0.5) 
+    };
   });
+}
 
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState<string>("");
-  const [showHeartInfo, setShowHeartInfo] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+export default function QuizPage() {
+  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const unitId = Number(params.id) || 1;
+  const chapterId = Number(searchParams.get("chapter")) || 1; 
 
-  const MAX_HEARTS = 25;
-  const REFILL_TIME = 10 * 60 * 1000;
+  const [hearts, setHearts] = useState(25);
+  const [quizQueue, setQuizQueue] = useState<QuizQuestion[]>([]);
+  const [step, setStep] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [selected, setSelected] = useState("");
+  const [status, setStatus] = useState<"none" | "correct" | "wrong">("none");
+  const [scrambleAnswer, setScrambleAnswer] = useState<string[]>([]);
+  const [matchSelection, setMatchSelection] = useState<{ en: string; ko: string }>({ en: "", ko: "" });
+  const [solvedPairs, setSolvedPairs] = useState<string[]>([]);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("duo_progress");
-    let initialProgress: ProgressType = { 
-      unit: 1, 
-      chapter: 1, 
-      hearts: 25, 
-      streak: 0, 
-      lastHeartTime: null 
-    };
-    
-    if (saved) {
-      try {
-        initialProgress = JSON.parse(saved);
-        setCurrentProgress(initialProgress);
-      } catch (e) {
-        console.error("Failed to parse progress", e);
+    if (saved) setHearts(JSON.parse(saved).hearts ?? 25);
+    setQuizQueue(generateQuestions(unitId, chapterId));
+  }, [unitId, chapterId]);
+
+  const updateHeartsInStorage = (newHearts: number) => {
+    const saved = localStorage.getItem("duo_progress");
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    data.hearts = newHearts;
+    if (newHearts < 25 && !data.lastHeartTime) data.lastHeartTime = Date.now();
+    localStorage.setItem("duo_progress", JSON.stringify(data));
+    setHearts(newHearts);
+  };
+
+  const handleMatchClick = (type: 'en' | 'ko', value: string) => {
+    if (status !== "none") return;
+    const newSelection = { ...matchSelection, [type]: value };
+    setMatchSelection(newSelection);
+
+    if (newSelection.en && newSelection.ko) {
+      const currentQ = quizQueue[step];
+      const correctPair = currentQ.pairs?.find(p => p.en === newSelection.en);
+      if (correctPair && correctPair.ko === newSelection.ko) {
+        setSolvedPairs(prev => [...prev, newSelection.en]);
+        setMatchSelection({ en: "", ko: "" });
+      } else {
+        setTimeout(() => setMatchSelection({ en: "", ko: "" }), 300);
       }
     }
+  };
 
-    const timer = setInterval(() => {
-      if (initialProgress.hearts < MAX_HEARTS && initialProgress.lastHeartTime) {
-        const now = Date.now();
-        const diff = now - initialProgress.lastHeartTime;
-        
-        if (diff >= REFILL_TIME) {
-          const refillAmount = Math.floor(diff / REFILL_TIME);
-          const newHearts = Math.min(MAX_HEARTS, initialProgress.hearts + refillAmount);
-          const newTime = newHearts === MAX_HEARTS ? null : initialProgress.lastHeartTime + (refillAmount * REFILL_TIME);
-          
-          const updated: ProgressType = { 
-            ...initialProgress, 
-            hearts: newHearts, 
-            lastHeartTime: newTime 
-          };
-          initialProgress = updated;
-          setCurrentProgress(updated);
-          localStorage.setItem("duo_progress", JSON.stringify(updated));
-        }
+  const handleCheck = () => {
+    if (status !== "none") return;
+    const currentQ = quizQueue[step];
+    let isCorrect = false;
 
-        const remaining = REFILL_TIME - (diff % REFILL_TIME);
-        const mins = Math.floor(remaining / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-        setTimeLeft(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
-      } else {
-        setTimeLeft("");
-      }
-    }, 1000);
+    if (currentQ.type === "scramble") isCorrect = scrambleAnswer.join("") === currentQ.a;
+    else if (currentQ.type === "matching") isCorrect = solvedPairs.length === 4;
+    else if (currentQ.type === "input_word") isCorrect = selected.trim().toLowerCase() === currentQ.a.toLowerCase();
+    else isCorrect = selected === currentQ.a;
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setActiveTooltip(null);
-        setShowHeartInfo(false);
-      }
-    };
+    if (isCorrect) {
+      setStatus("correct");
+    } else {
+      setStatus("wrong");
+      setQuizQueue(prev => [...prev, currentQ]);
+    }
+  };
 
-    window.addEventListener("click", handleClickOutside);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
+  const nextStep = () => {
+    if (status === "wrong") updateHeartsInStorage(Math.max(0, hearts - 1));
+    if (step < quizQueue.length - 1) {
+      setStep(step + 1);
+      setSelected("");
+      setScrambleAnswer([]);
+      setSolvedPairs([]);
+      setMatchSelection({ en: "", ko: "" });
+      setStatus("none");
+    } else {
+      router.push("/learn");
+    }
+  };
 
-  const units = Array.from({ length: 10 }, (_, i) => i + 1);
-  const chapters = Array.from({ length: 25 }, (_, i) => i + 1);
+  if (!mounted || quizQueue.length === 0) return null;
+  const currentQuestion = quizQueue[step];
+  const progress = (step / quizQueue.length) * 100;
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-white pb-24 font-sans text-black select-none">
-      <header className="sticky top-0 z-[100] bg-white border-b border-gray-100 px-4 py-2">
-        <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-lg font-black tracking-tighter cursor-default italic">VOCAB MASTER</h1>
-          <div className="flex gap-4 items-center font-bold text-sm relative">
-            <div className="flex items-center gap-1">🔥 {currentProgress.streak}</div>
-            <div 
-              className="flex items-center gap-1 cursor-pointer bg-gray-50 px-2 py-1 rounded-lg active:scale-95 transition-all"
-              onClick={(e) => { e.stopPropagation(); setShowHeartInfo(!showHeartInfo); }}
-            >
-              ❤️ {currentProgress.hearts}
-            </div>
+    <div className="h-[100dvh] flex flex-col bg-white text-black select-none overflow-hidden font-sans">
+      <header className="h-12 px-4 flex items-center gap-3 w-full max-w-md mx-auto">
+        <Link href="/learn" className="text-gray-300 font-bold">✕</Link>
+        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-black transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
+        <div className={`text-xs font-black ${status === 'wrong' ? 'animate-shake text-red-500' : ''}`}>❤️ {hearts}</div>
+      </header>
 
-            {showHeartInfo && (
-              <div className="absolute top-10 right-0 bg-black text-white text-[10px] px-3 py-2 rounded-xl shadow-xl z-[110] whitespace-nowrap animate-in fade-in slide-in-from-top-1">
-                {currentProgress.hearts >= MAX_HEARTS 
-                  ? "하트가 가득 찼습니다!" 
-                  : `다음 충전까지: ${timeLeft}`}
-                <div className="absolute -top-1 right-4 w-2 h-2 bg-black rotate-45"></div>
+      <main className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="text-3xl font-black mb-8">{currentQuestion.q}</h1>
+
+          <div className="w-full min-h-[250px] flex flex-col justify-center">
+            {currentQuestion.type === "matching" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  {currentQuestion.pairs?.map(p => (
+                    <button key={p.en} onClick={() => handleMatchClick('en', p.en)} disabled={solvedPairs.includes(p.en) || status !== "none"} className={`p-3 border-2 rounded-2xl text-[13px] font-black transition-all ${solvedPairs.includes(p.en) ? "opacity-0 invisible" : (matchSelection.en === p.en ? "bg-black text-white border-black" : "bg-white border-gray-100")}`}>{p.en}</button>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {currentQuestion.pairs?.slice().sort((a,b) => a.ko.localeCompare(b.ko)).map(p => (
+                    <button key={p.ko} onClick={() => handleMatchClick('ko', p.ko)} disabled={solvedPairs.includes(currentQuestion.pairs?.find(pair=>pair.ko === p.ko)?.en || "") || status !== "none"} className={`p-3 border-2 rounded-2xl text-[13px] font-black transition-all ${solvedPairs.includes(currentQuestion.pairs?.find(pair=>pair.ko === p.ko)?.en || "") ? "opacity-0 invisible" : (matchSelection.ko === p.ko ? "bg-black text-white border-black" : "bg-white border-gray-100")}`}>{p.ko}</button>
+                  ))}
+                </div>
+              </div>
+            ) : currentQuestion.type === "scramble" ? (
+              <div className="flex flex-col gap-6 w-full">
+                <div className="flex flex-wrap justify-center gap-1.5 min-h-[60px] border-b-2 border-gray-100 mb-2 relative group">
+                  {scrambleAnswer.map((l, i) => (
+                    <span key={i} className="text-2xl font-black border-b-4 border-black px-1 animate-[pop_0.2s_ease-out]">{l}</span>
+                  ))}
+                  {scrambleAnswer.length > 0 && status === "none" && (
+                    <button onClick={() => setScrambleAnswer(prev => prev.slice(0, -1))} className="absolute -right-2 bottom-2 text-gray-400 hover:text-black transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><line x1="18" y1="9" x2="12" y2="15"></line><line x1="12" y1="9" x2="18" y2="15"></line></svg>
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {currentQuestion.letters?.map((l, i) => (
+                    <button 
+                      key={i} 
+                      disabled={status !== "none"} 
+                      onClick={() => setScrambleAnswer([...scrambleAnswer, l])} 
+                      className="px-4 py-2 border-2 border-gray-100 rounded-2xl font-black shadow-[0_4px_0_#E5E5E5] active:translate-y-1 active:shadow-none transition-all hover:bg-gray-50"
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {scrambleAnswer.length > 0 && status === "none" && (
+                  <button onClick={() => setScrambleAnswer([])} className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors">Reset All</button>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {currentQuestion.options?.map((opt) => (
+                  <button key={opt} disabled={status !== "none"} onClick={() => setSelected(opt)} className={`p-4 border-2 rounded-2xl text-base font-black border-b-4 transition-all ${selected === opt ? "bg-black text-white border-black" : "bg-white border-gray-100"}`}>{opt}</button>
+                ))}
+                {currentQuestion.type === "input_word" && (
+                  <input type="text" value={selected} disabled={status !== "none"} onChange={(e) => setSelected(e.target.value)} placeholder="영단어를 입력하세요" className="w-full p-2 text-xl font-black border-b-4 border-black outline-none text-center bg-transparent focus:border-blue-400 transition-colors" />
+                )}
               </div>
             )}
           </div>
         </div>
-      </header>
-
-      <main className="max-w-md mx-auto px-4 pt-6">
-        {units.map((unit) => (
-          <section key={unit} className="mb-12">
-            <div 
-              onClick={(e) => {
-                if (unit > currentProgress.unit) {
-                  e.stopPropagation();
-                  setActiveTooltip(`unit-${unit}`);
-                }
-              }}
-              className={`p-4 rounded-xl mb-10 border transition-all relative cursor-pointer ${
-                unit > currentProgress.unit ? "bg-gray-50 border-gray-100 text-gray-300" : "bg-black border-black text-white"
-              }`}
-            >
-              <h2 className="text-[10px] font-black opacity-70">UNIT {unit}</h2>
-              <p className="text-base font-black italic">
-                {unit > currentProgress.unit ? "Locked Unit" : `Essential Vocab Section #${unit}`}
-              </p>
-              
-              {activeTooltip === `unit-${unit}` && (
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-[11px] px-3 py-1 rounded-lg font-bold z-50 animate-in zoom-in">
-                  이전 유닛을 완료하세요
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-500 rotate-45"></div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center gap-6">
-              {chapters.map((chapter, idx) => {
-                const isLocked = unit > currentProgress.unit || (unit === currentProgress.unit && chapter > currentProgress.chapter);
-                const chapterKey = `${unit}-${chapter}`;
-                
-                // 굴곡진 경로 표현
-                const offsets = [0, 30, 55, 30, 0, -30, -55, -30];
-                const translateX = offsets[idx % offsets.length];
-
-                // 🎯 챕터별 모드 설정 (유닛 페이지와 동일한 로직)
-                let modeName = "";
-                let modeQuery = "";
-                const isCumulativeReview = chapter % 5 === 0; // 5, 10... 누적 복습
-                const isOddChapter = chapter % 2 !== 0;      // 1, 3, 5... (학습 챕터)
-
-                if (isCumulativeReview) {
-                  modeName = "유닛 누적 복습";
-                  modeQuery = "review";
-                } else if (!isOddChapter) {
-                  modeName = "직전 단어 테스트";
-                  modeQuery = "test";
-                } else {
-                  modeName = "새 단어 학습";
-                  modeQuery = "learn";
-                }
-
-                return (
-                  <div key={chapterKey} style={{ transform: `translateX(${translateX}px)` }} className="relative">
-                    {activeTooltip === chapterKey && (
-                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-[90] animate-in fade-in zoom-in duration-150">
-                        <div className={`${isLocked ? "bg-gray-400" : "bg-black"} text-white text-[11px] font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex flex-col items-center`}>
-                          {isLocked ? "잠겨있습니다" : modeName}
-                          <div className={`w-2 h-2 ${isLocked ? "bg-gray-400" : "bg-black"} rotate-45 -mb-2 mt-1`}></div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTooltip(activeTooltip === chapterKey ? null : chapterKey);
-                      }}
-                      className="relative cursor-pointer"
-                    >
-                      {isLocked ? (
-                        <div className="w-14 h-14 rounded-full bg-gray-50 border-b-4 border-gray-200 flex items-center justify-center text-gray-300">
-                          <span className="text-lg">🔒</span>
-                        </div>
-                      ) : (
-                        <div className={`
-                          w-14 h-14 rounded-full flex items-center justify-center 
-                          text-lg font-black border-b-4 transition-all active:translate-y-0.5 active:border-b-0
-                          ${unit === currentProgress.unit && chapter === currentProgress.chapter
-                            ? "bg-black border-gray-700 text-white ring-4 ring-black ring-offset-2"
-                            : isCumulativeReview 
-                              ? "bg-orange-400 border-orange-600 text-white" 
-                              : "bg-white border-black text-black"}
-                        `}>
-                          {isCumulativeReview ? "★" : chapter}
-                        </div>
-                      )}
-
-                      {activeTooltip === chapterKey && !isLocked && (
-                        <Link 
-                          href={`/learn/quiz/${unit}?chapter=${chapter}&mode=${modeQuery}`}
-                          className="absolute inset-0 z-10"
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
       </main>
 
-      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 py-4 z-[100]">
-        <div className="max-w-md mx-auto flex justify-around items-center">
-          <button className="text-2xl hover:scale-110 transition-transform">🏠</button>
-          <button className="text-2xl hover:scale-110 transition-transform opacity-30">👤</button>
-          <button className="text-2xl hover:scale-110 transition-transform opacity-30">🏆</button>
+      <footer className={`p-6 border-t-2 ${status === "correct" ? "bg-green-50" : status === "wrong" ? "bg-red-50" : "bg-white"}`}>
+        <div className="max-w-sm mx-auto">
+          {status !== "none" && (
+            <div className="mb-4">
+              <h3 className={`text-lg font-black ${status === "correct" ? "text-green-600" : "text-red-600"}`}>{status === "correct" ? "참 잘했어요!" : "정답 확인:"}</h3>
+              {status === "wrong" && <p className="text-red-600 font-bold">{currentQuestion.a}</p>}
+            </div>
+          )}
+          <button onClick={status === "none" ? handleCheck : nextStep} className={`w-full py-4 rounded-2xl font-black transition-all ${status === "none" ? (selected || scrambleAnswer.length > 0 || solvedPairs.length === 4 ? "bg-black text-white" : "bg-gray-100 text-gray-400") : (status === "correct" ? "bg-green-500 text-white" : "bg-red-500 text-white")}`}>
+            {status === "none" ? "확인" : "계속하기"}
+          </button>
         </div>
-      </nav>
+      </footer>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes pop { 0% { transform: scale(0.9); } 100% { transform: scale(1); } } @keyframes shake { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } } .animate-shake { animation: shake 0.2s ease-in-out; }` }} />
     </div>
   );
 }
