@@ -109,12 +109,12 @@ export default function QuizPage() {
     setMounted(true);
   }, []);
 
-  // ✅ 5콤보 축하 창 자동 종료 로직 추가
+  // 콤보 팝업 1.5초 후 자동 종료
   useEffect(() => {
     if (showSpecialCelebration) {
       const timer = setTimeout(() => {
         setShowSpecialCelebration(false);
-      }, 1800); // 1.8초 후 자동으로 닫힘
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [showSpecialCelebration]);
@@ -191,7 +191,7 @@ export default function QuizPage() {
       setStatus("correct");
       const newCombo = combo + 1;
       setCombo(newCombo);
-      if (newCombo % 5 === 0) { // 5, 10, 15... 콤보마다 축하
+      if (newCombo % 5 === 0) {
         const colors = ['#58CC02', '#FF4B4B', '#1CB0F6', '#FFC800', '#FF9600'];
         setConfettiPieces(Array.from({ length: 40 }).map((_, i) => ({
           id: i, left: `${Math.random() * 100}%`, delay: `${Math.random() * 0.5}s`,
@@ -230,8 +230,8 @@ export default function QuizPage() {
 
   if (showReviewIntro) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="text-5xl mb-6">🎯</div>
-      <h1 className="text-3xl font-black text-orange-500 mb-6">틀린 문제를 복습해봐요!</h1>
+      <div className="text-4xl mb-4">🎯</div>
+      <h1 className="text-2xl font-black text-orange-500 mb-6">틀린 문제를 복습해요</h1>
       <button onClick={() => {
         setCurrentQuestions([...failedQuestions]);
         setFailedQuestions([]);
@@ -240,15 +240,15 @@ export default function QuizPage() {
         setStatus("none");
         setIsReviewMode(true);
         setShowReviewIntro(false);
-      }} className="w-full max-w-sm bg-orange-500 text-white py-4 rounded-2xl font-bold text-lg shadow-[0_5px_0_#C2410C]">복습 시작하기</button>
+      }} className="w-full max-w-[280px] bg-orange-500 text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_0_#C2410C]">복습 시작</button>
     </div>
   );
 
   if (isFinished) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-      <div className="text-5xl mb-6">🏆</div>
-      <h1 className="text-3xl font-black text-[#58CC02] mb-6">학습 완료!</h1>
-      <button onClick={() => router.push("/learn")} className="w-full max-w-sm bg-[#58CC02] text-white py-4 rounded-2xl font-bold text-lg shadow-[0_5px_0_#46A302]">계속하기</button>
+      <div className="text-4xl mb-4">🏆</div>
+      <h1 className="text-2xl font-black text-[#58CC02] mb-6">학습 완료!</h1>
+      <button onClick={() => router.push("/learn")} className="w-full max-w-[280px] bg-[#58CC02] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_0_#46A302]">계속하기</button>
     </div>
   );
 
@@ -257,28 +257,14 @@ export default function QuizPage() {
 
   return (
     <div className="h-screen flex flex-col bg-white relative overflow-hidden font-sans select-none">
-      {/* 하트 부족 모달 */}
-      {isHeartModalOpen && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setIsHeartModalOpen(false)} />
-          <div className="bg-white w-full max-w-[320px] rounded-[2rem] p-6 shadow-2xl relative animate-[combo-pop_0.4s_ease-out] flex flex-col items-center text-center">
-            <div className="text-4xl mb-4">💔</div>
-            <h2 className="text-2xl font-black text-[#4B4B4B] mb-1">하트 부족!</h2>
-            <p className="text-gray-500 font-bold text-base mb-1">충전까지</p>
-            <div className="text-[#FF4B4B] text-3xl font-black mb-6 tabular-nums">{timeLeft}</div>
-            <button onClick={() => router.push("/learn")} className="w-full py-3 bg-[#1CB0F6] text-white rounded-xl font-black text-lg shadow-[0_4px_0_#1899D6] active:translate-y-1 mb-3 transition-all">메인으로</button>
-            <button onClick={() => setIsHeartModalOpen(false)} className="text-[#AFAFAF] font-bold text-base">닫기</button>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 5콤보 축하 팝업 (1.5초 후 자동 종료) */}
+      
+      {/* 콤보 팝업 - 크기 30% 축소 */}
       {showSpecialCelebration && (
-        <div className="fixed inset-0 z-[200] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-[flash_0.3s_ease-out]">
-          <div className="z-10 animate-[combo-pop_0.6s_cubic-bezier(0.34,1.56,0.64,1)_forwards]">
-            <div className="text-8xl mb-4">🔥</div>
-            <h1 className="text-4xl font-black text-orange-500 mb-2 italic tracking-tighter">{combo} COMBO!</h1>
-            <p className="text-orange-400 font-bold text-xl">대단해요!</p>
+        <div className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-[flash_0.3s_ease-out]">
+          <div className="z-10 animate-[combo-pop_0.5s_cubic-bezier(0.34,1.56,0.64,1)_forwards]">
+            <div className="text-6xl mb-3">🔥</div>
+            <h1 className="text-3xl font-black text-orange-500 mb-1 italic">{combo} COMBO!</h1>
+            <p className="text-orange-400 font-bold text-lg">완벽해요!</p>
           </div>
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {confettiPieces.map((p) => (
@@ -288,53 +274,53 @@ export default function QuizPage() {
         </div>
       )}
 
-      {/* 헤더 - 여백 및 크기 축소 */}
-      <header className="px-4 pt-6 pb-2 flex flex-col items-center max-w-2xl mx-auto w-full relative">
-        <div className="h-8 mb-1">
-          {combo >= 2 && <div key={combo} className="text-orange-500 font-black text-xl italic animate-[combo-event_1.2s_ease-in-out_forwards]">{combo} COMBO! ✨</div>}
+      {/* 헤더 - 콤팩트화 */}
+      <header className="px-4 pt-4 pb-1 flex flex-col items-center max-w-xl mx-auto w-full relative">
+        <div className="h-6 mb-1">
+          {combo >= 2 && <div key={combo} className="text-orange-500 font-black text-lg italic animate-[combo-event_1s_ease-in-out_forwards]">{combo} COMBO!</div>}
         </div>
-        <div className="flex items-center gap-3 w-full">
-          <Link href="/learn" className="text-gray-400 text-2xl font-bold px-1">✕</Link>
-          <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+        <div className="flex items-center gap-2 w-full">
+          <Link href="/learn" className="text-gray-400 text-xl font-bold p-1">✕</Link>
+          <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
             <div className={`h-full transition-all duration-500 ${isReviewMode ? 'bg-orange-400' : 'bg-[#58CC02]'}`} style={{ width: `${progress}%` }} />
           </div>
-          <div className="text-red-500 font-black text-xl flex items-center gap-1.5 min-w-[70px] justify-end">
-            <span className={hearts < 5 ? "animate-pulse" : ""}>❤️</span> {hearts}
+          <div className="text-red-500 font-black text-lg flex items-center gap-1 min-w-[60px] justify-end">
+            <span>❤️</span> {hearts}
           </div>
         </div>
       </header>
 
-      {/* 메인 - 텍스트 크기 반응형 조절 */}
-      <main className="flex-1 flex flex-col items-center px-5 justify-center overflow-y-auto">
-        <div className="max-w-xl w-full text-center">
-          <div className="mb-8 md:mb-12">
-            <h1 className="text-4xl md:text-6xl font-black p-2 text-[#4B4B4B] break-keep leading-tight">
+      {/* 메인 - 질문 크기 대폭 축소 (text-3xl) */}
+      <main className="flex-1 flex flex-col items-center px-4 justify-center overflow-y-auto">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6 md:mb-10">
+            <h1 className="text-3xl md:text-5xl font-black p-1 text-[#4B4B4B] break-keep leading-snug">
               {currentQuestion?.q}
             </h1>
           </div>
           
           {currentQuestion?.type === "input_word" ? (
-             <input ref={inputRef} type="text" value={selected} disabled={status !== "none"} onChange={(e) => setSelected(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCheck()} placeholder="정답 입력" className={`w-full p-4 md:p-6 text-2xl md:text-3xl font-black border-2 rounded-2xl outline-none text-center transition-all ${status === "none" ? "border-gray-200 focus:border-[#1CB0F6] bg-gray-50 text-[#4B4B4B]" : status === "correct" ? "border-[#B8F28B] bg-[#D7FFB8] !text-[#58A700]" : "border-[#FFC1C1] bg-[#FFF1F1] !text-[#EA2B2B]"}`} />
+             <input ref={inputRef} type="text" value={selected} disabled={status !== "none"} onChange={(e) => setSelected(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCheck()} placeholder="정답 입력" className={`w-full p-3.5 md:p-6 text-xl md:text-2xl font-black border-2 rounded-xl outline-none text-center transition-all ${status === "none" ? "border-gray-200 focus:border-[#1CB0F6] bg-gray-50 text-[#4B4B4B]" : status === "correct" ? "border-[#B8F28B] bg-[#D7FFB8] !text-[#58A700]" : "border-[#FFC1C1] bg-[#FFF1F1] !text-[#EA2B2B]"}`} />
           ) : (
-            <div className="grid gap-3 md:gap-4 w-full px-1">
+            <div className="grid gap-2.5 md:gap-4 w-full px-1">
               {currentQuestion?.options?.map((opt) => (
-                <button key={opt} disabled={status !== "none"} onClick={() => setSelected(opt)} className={`p-4 md:p-5 border-2 rounded-2xl md:rounded-[2rem] text-lg md:text-2xl font-bold transition-all text-left border-b-4 md:border-b-8 active:scale-[0.98] ${selected === opt ? "border-[#84D8FF] bg-[#E5F3FF] text-[#1CB0F6]" : "border-gray-200 text-[#4B4B4B] hover:bg-gray-100"} ${status === "correct" && opt === currentQuestion.a ? "border-[#B8F28B] bg-[#D7FFB8] text-[#58A700]" : ""} ${status === "wrong" && selected === opt ? "border-[#FFC1C1] bg-[#FFF1F1] text-[#EA2B2B]" : ""}`}> {opt} </button>
+                <button key={opt} disabled={status !== "none"} onClick={() => setSelected(opt)} className={`p-3.5 md:p-5 border-2 rounded-xl md:rounded-2xl text-base md:text-xl font-bold transition-all text-left border-b-4 md:border-b-8 active:scale-[0.98] ${selected === opt ? "border-[#84D8FF] bg-[#E5F3FF] text-[#1CB0F6]" : "border-gray-200 text-[#4B4B4B] hover:bg-gray-100"} ${status === "correct" && opt === currentQuestion.a ? "border-[#B8F28B] bg-[#D7FFB8] text-[#58A700]" : ""} ${status === "wrong" && selected === opt ? "border-[#FFC1C1] bg-[#FFF1F1] text-[#EA2B2B]" : ""}`}> {opt} </button>
               ))}
             </div>
           )}
         </div>
       </main>
 
-      {/* 푸터 - 버튼 두께 및 글자 크기 축소 */}
-      <footer className={`p-5 pb-8 md:p-8 md:pb-12 border-t-4 transition-colors duration-300 ${status === "correct" ? "bg-[#D7FFB8] border-[#B8F28B]" : status === "wrong" ? "bg-[#FFDFE0] border-[#FFC1C1]" : "bg-white border-gray-100"}`}>
-        <div className="max-w-xl mx-auto flex flex-col gap-3">
+      {/* 푸터 - 버튼 높이 대폭 축소 (py-3.5) */}
+      <footer className={`p-4 pb-6 md:p-8 md:pb-12 border-t-2 transition-colors duration-300 ${status === "correct" ? "bg-[#D7FFB8] border-[#B8F28B]" : status === "wrong" ? "bg-[#FFDFE0] border-[#FFC1C1]" : "bg-white border-gray-100"}`}>
+        <div className="max-w-md mx-auto flex flex-col gap-2.5">
           {status === "none" ? (
-            <button onClick={handleCheck} disabled={!selected.trim()} className={`w-full py-4 md:py-5 rounded-2xl md:rounded-[2rem] font-black text-white text-xl md:text-2xl uppercase transition-all ${selected.trim() ? "bg-[#58CC02] shadow-[0_5px_0_#46A302] active:translate-y-1 active:shadow-none" : "bg-[#E5E5E5] text-[#AFAFAF] cursor-not-allowed"}`}>확인하기</button>
+            <button onClick={handleCheck} disabled={!selected.trim()} className={`w-full py-3.5 md:py-5 rounded-xl md:rounded-2xl font-black text-white text-lg md:text-xl uppercase transition-all ${selected.trim() ? "bg-[#58CC02] shadow-[0_4px_0_#46A302] active:translate-y-0.5 active:shadow-none" : "bg-[#E5E5E5] text-[#AFAFAF] cursor-not-allowed"}`}>확인하기</button>
           ) : (
             <>
-              <h3 className={`text-2xl md:text-3xl font-black ${status === "correct" ? "text-[#58A700]" : "text-[#EA2B2B]"}`}>{status === "correct" ? "훌륭해요!" : "아쉬워요!"}</h3>
-              {status === "wrong" && <p className="text-[#EA2B2B] font-bold text-lg md:text-xl uppercase">정답: {currentQuestion.a}</p>}
-              <button onClick={handleNext} className={`w-full py-4 md:py-5 rounded-2xl md:rounded-[2rem] font-black text-white text-xl md:text-2xl uppercase shadow-lg active:translate-y-1 active:shadow-none transition-all ${status === "correct" ? "bg-[#58CC02] shadow-[0_4px_0_#46A302]" : "bg-[#FF4B4B] shadow-[0_4px_0_#D33131]"}`}>계속하기</button>
+              <h3 className={`text-xl md:text-2xl font-black ${status === "correct" ? "text-[#58A700]" : "text-[#EA2B2B]"}`}>{status === "correct" ? "정답입니다!" : "틀렸어요!"}</h3>
+              {status === "wrong" && <p className="text-[#EA2B2B] font-bold text-base md:text-lg">정답: {currentQuestion.a}</p>}
+              <button onClick={handleNext} className={`w-full py-3.5 md:py-5 rounded-xl md:rounded-2xl font-black text-white text-lg md:text-xl uppercase shadow-md active:translate-y-0.5 active:shadow-none transition-all ${status === "correct" ? "bg-[#58CC02] shadow-[0_4px_0_#46A302]" : "bg-[#FF4B4B] shadow-[0_4px_0_#D33131]"}`}>계속하기</button>
             </>
           )}
         </div>
@@ -342,8 +328,8 @@ export default function QuizPage() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
-        .confetti { position: absolute; width: 12px; height: 12px; top: -20px; border-radius: 3px; animation: fall linear forwards; }
-        @keyframes combo-event { 0% { transform: translateY(20px) scale(0); opacity: 0; } 25% { transform: translateY(-5px) scale(1.2); opacity: 1; } 50% { transform: translateY(0) scale(1); opacity: 1; } 75% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-30px) scale(0.8); opacity: 0; } }
+        .confetti { position: absolute; width: 10px; height: 10px; top: -20px; border-radius: 2px; animation: fall linear forwards; }
+        @keyframes combo-event { 0% { transform: translateY(15px) scale(0); opacity: 0; } 25% { transform: translateY(-3px) scale(1.1); opacity: 1; } 50% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-20px) scale(0.8); opacity: 0; } }
         @keyframes flash { 0% { opacity: 0; } 100% { opacity: 1; } }
         @keyframes combo-pop { 0% { transform: scale(0.3) rotate(-10deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
       `}} />
