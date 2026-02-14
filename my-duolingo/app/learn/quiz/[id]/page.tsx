@@ -71,7 +71,7 @@ export default function QuizPage() {
 
   useEffect(() => {
     if (showSpecialCelebration) {
-      const timer = setTimeout(() => setShowSpecialCelebration(false), 5000); // 5초 유지
+      const timer = setTimeout(() => setShowSpecialCelebration(false), 5000); 
       return () => clearTimeout(timer);
     }
   }, [showSpecialCelebration]);
@@ -104,10 +104,10 @@ export default function QuizPage() {
   return (
     <div className="h-[100dvh] flex flex-col bg-white overflow-hidden select-none text-[#4B4B4B]">
       
-      {/* 5초 콤보 팝업 - 크기 대폭 축소 */}
+      {/* 5초 콤보 팝업 */}
       {showSpecialCelebration && (
         <div className="fixed inset-0 z-[500] bg-white/90 flex flex-col items-center justify-center animate-[flash_0.3s]">
-          <div className="scale-75 md:scale-100 text-center animate-[combo-pop_0.5s_forwards]">
+          <div className="scale-75 text-center animate-[combo-pop_0.5s_forwards]">
             <div className="text-5xl mb-2">🔥</div>
             <h1 className="text-2xl font-black text-orange-500 italic">{combo} COMBO!</h1>
           </div>
@@ -119,35 +119,45 @@ export default function QuizPage() {
         </div>
       )}
 
-      {/* 헤더 - 높이 최소화 (h-12) */}
-      <header className="h-12 px-4 flex items-center gap-3 w-full max-w-md mx-auto">
+      {/* 헤더 */}
+      <header className="h-10 px-4 flex items-center gap-3 w-full max-w-md mx-auto">
         <Link href="/learn" className="text-gray-400 text-lg font-bold">✕</Link>
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
           <div className="h-full bg-[#58CC02] transition-all" style={{ width: `${progress}%` }} />
         </div>
-        <div className="text-red-500 font-bold text-sm flex items-center gap-1">❤️ {hearts}</div>
+        <div className="text-red-500 font-bold text-xs">❤️ {hearts}</div>
       </header>
 
-      {/* 메인 콘텐츠 - 상하 여백 제거 */}
-      <main className="flex-1 flex flex-col items-center justify-center px-5">
+      {/* 메인 퀴즈 영역 */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm text-center">
-          <div className="mb-6 relative inline-block">
+          <div className="mb-4 relative inline-block">
+            {/* ✅ 주황색 텍스트 힌트 (말풍선 배경 제거 버전) */}
             {showHint && (
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#1CB0F6] text-white px-3 py-1 rounded-lg text-sm font-bold shadow-md z-50 after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-[#1CB0F6]">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-orange-500 text-sm font-black whitespace-nowrap animate-[hint-fade_0.3s_ease-out]">
                 {currentQuestion.meaningHint}
               </div>
             )}
-            <h1 onClick={() => isLearningMode && setShowHint(!showHint)} className={`text-2xl md:text-3xl font-black transition-all cursor-pointer ${isLearningMode ? "text-[#1CB0F6] border-b-2 border-dotted border-[#1CB0F6]" : ""}`}>
+            
+            <h1 
+              onClick={() => isLearningMode && setShowHint(!showHint)} 
+              className={`text-2xl font-black leading-tight transition-all cursor-pointer ${isLearningMode ? "text-[#1CB0F6] border-b-2 border-dotted border-[#1CB0F6]" : ""}`}
+            >
               {currentQuestion?.q}
             </h1>
           </div>
 
           <div className="grid gap-2 w-full">
             {currentQuestion?.type === "input_word" ? (
-              <input type="text" value={selected} disabled={status !== "none"} onChange={(e) => setSelected(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCheck()} placeholder="정답 입력" className="w-full p-3 text-lg font-bold border-2 rounded-xl outline-none text-center bg-gray-50 border-gray-200" />
+              <input type="text" value={selected} disabled={status !== "none"} onChange={(e) => setSelected(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCheck()} placeholder="정답 입력" className="w-full p-2.5 text-lg font-bold border-2 rounded-xl outline-none text-center bg-gray-50 border-gray-200" />
             ) : (
               currentQuestion?.options?.map((opt) => (
-                <button key={opt} disabled={status !== "none"} onClick={() => { setSelected(opt); setShowHint(false); }} className={`p-2.5 border-2 rounded-xl text-sm font-bold border-b-4 transition-all ${selected === opt ? "border-[#84D8FF] bg-[#E5F3FF] text-[#1CB0F6]" : "border-gray-200 active:translate-y-0.5 active:border-b-0"} ${status === "correct" && opt === currentQuestion.a ? "!border-[#B8F28B] !bg-[#D7FFB8] !text-[#58A700]" : ""} ${status === "wrong" && selected === opt ? "!border-[#FFC1C1] !bg-[#FFF1F1] !text-[#EA2B2B]" : ""}`}>
+                <button 
+                  key={opt} 
+                  disabled={status !== "none"} 
+                  onClick={() => { setSelected(opt); setShowHint(false); }} 
+                  className={`p-2 border-2 rounded-xl text-sm font-bold border-b-4 transition-all ${selected === opt ? "border-[#84D8FF] bg-[#E5F3FF] text-[#1CB0F6]" : "border-gray-200 active:translate-y-0.5 active:border-b-0"} ${status === "correct" && opt === currentQuestion.a ? "!border-[#B8F28B] !bg-[#D7FFB8] !text-[#58A700]" : ""} ${status === "wrong" && selected === opt ? "!border-[#FFC1C1] !bg-[#FFF1F1] !text-[#EA2B2B]" : ""}`}
+                >
                   {opt}
                 </button>
               ))
@@ -156,16 +166,20 @@ export default function QuizPage() {
         </div>
       </main>
 
-      {/* 푸터 - 패딩 대폭 축소 */}
-      <footer className={`p-4 border-t-2 transition-colors ${status === "correct" ? "bg-[#D7FFB8] border-[#B8F28B]" : status === "wrong" ? "bg-[#FFDFE0] border-[#FFC1C1]" : "bg-white border-gray-100"}`}>
-        <div className="max-w-sm mx-auto flex flex-col gap-2">
+      {/* 푸터 */}
+      <footer className={`p-3 border-t-2 transition-colors ${status === "correct" ? "bg-[#D7FFB8] border-[#B8F28B]" : status === "wrong" ? "bg-[#FFDFE0] border-[#FFC1C1]" : "bg-white border-gray-100"}`}>
+        <div className="max-w-sm mx-auto flex flex-col gap-1.5">
           {status !== "none" && (
-            <div className="mb-1">
-              <h3 className={`text-base font-black ${status === "correct" ? "text-[#58A700]" : "text-[#EA2B2B]"}`}>{status === "correct" ? "정답입니다!" : "아쉬워요!"}</h3>
-              {status === "wrong" && <p className="text-[#EA2B2B] text-xs font-bold">정답: {currentQuestion.a}</p>}
+            <div className="px-1">
+              <h3 className={`text-sm font-black ${status === "correct" ? "text-[#58A700]" : "text-[#EA2B2B]"}`}>{status === "correct" ? "정답입니다!" : "아쉬워요!"}</h3>
+              {status === "wrong" && <p className="text-[#EA2B2B] text-[11px] font-bold">정답: {currentQuestion.a}</p>}
             </div>
           )}
-          <button onClick={status === "none" ? handleCheck : (step < currentQuestions.length - 1 ? () => {setStep(step+1); setSelected(""); setStatus("none");} : () => router.push("/learn"))} disabled={status === "none" && !selected.trim()} className={`w-full py-3 rounded-xl font-black text-white text-base shadow-[0_3px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-0.5 transition-all ${status === "none" ? (selected.trim() ? "bg-[#58CC02]" : "bg-[#E5E5E5] text-[#AFAFAF] shadow-none") : (status === "correct" ? "bg-[#58CC02]" : "bg-[#FF4B4B]")}`}>
+          <button 
+            onClick={status === "none" ? handleCheck : (step < currentQuestions.length - 1 ? () => {setStep(step+1); setSelected(""); setStatus("none");} : () => router.push("/learn"))} 
+            disabled={status === "none" && !selected.trim()} 
+            className={`w-full py-2.5 rounded-xl font-black text-white text-sm shadow-[0_3px_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-0.5 transition-all ${status === "none" ? (selected.trim() ? "bg-[#58CC02]" : "bg-[#E5E5E5] text-[#AFAFAF] shadow-none") : (status === "correct" ? "bg-[#58CC02]" : "bg-[#FF4B4B]")}`}
+          >
             {status === "none" ? "확인하기" : "계속하기"}
           </button>
         </div>
@@ -175,6 +189,7 @@ export default function QuizPage() {
         @keyframes fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
         .confetti { position: absolute; width: 8px; height: 8px; top: -10px; border-radius: 2px; animation: fall linear forwards; }
         @keyframes combo-pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes hint-fade { 0% { opacity: 0; transform: translate(-50%, 5px); } 100% { opacity: 1; transform: translate(-50%, 0); } }
       `}} />
     </div>
   );
