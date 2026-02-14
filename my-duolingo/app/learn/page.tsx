@@ -9,26 +9,64 @@ export default function LearnPage() {
     chapter: 1,
     hearts: 25,
     streak: 0,
+    lastHeartTime: null,
   });
 
-  // 어떤 챕터의 말풍선을 보여줄지 관리하는 상태
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [showHeartInfo, setShowHeartInfo] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const MAX_HEARTS = 25;
+  const REFILL_TIME = 10 * 60 * 1000; // 10분
+
+  // 로컬 스토리지 데이터 불러오기 및 타이머 로직
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("duo_progress");
-      if (saved) setCurrentProgress(JSON.parse(saved));
+    const saved = localStorage.getItem("duo_progress");
+    let initialProgress = { unit: 1, chapter: 1, hearts: 25, streak: 0, lastHeartTime: null };
+    
+    if (saved) {
+      initialProgress = JSON.parse(saved);
+      setCurrentProgress(initialProgress);
     }
 
-    // 화면 다른 곳 누르면 말풍선 닫기
+    const timer = setInterval(() => {
+      if (initialProgress.hearts < MAX_HEARTS && initialProgress.lastHeartTime) {
+        const now = Date.now();
+        const diff = now - initialProgress.lastHeartTime;
+        
+        if (diff >= REFILL_TIME) {
+          const refillAmount = Math.floor(diff / REFILL_TIME);
+          const newHearts = Math.min(MAX_HEARTS, initialProgress.hearts + refillAmount);
+          const newTime = newHearts === MAX_HEARTS ? null : initialProgress.lastHeartTime + (refillAmount * REFILL_TIME);
+          
+          const updated = { ...initialProgress, hearts: newHearts, lastHeartTime: newTime };
+          initialProgress = updated;
+          setCurrentProgress(updated);
+          localStorage.setItem("duo_progress", JSON.stringify(updated));
+        }
+
+        // 남은 시간 계산
+        const remaining = REFILL_TIME - (diff % REFILL_TIME);
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        setTimeLeft(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
+      } else {
+        setTimeLeft("");
+      }
+    }, 1000);
+
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setActiveTooltip(null);
+        setShowHeartInfo(false);
       }
     };
     window.addEventListener("click", handleClickOutside);
-    return () => window.removeEventListener("click", handleClickOutside);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("click", handleClickOutside);
+    };
   }, []);
 
   const units = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -39,10 +77,26 @@ export default function LearnPage() {
       {/* 헤더 */}
       <header className="sticky top-0 z-[100] bg-white border-b border-gray-100 px-4 py-2">
         <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-lg font-black tracking-tighter">LEARN</h1>
-          <div className="flex gap-4 items-center font-bold text-sm">
-            <span>🔥 {currentProgress.streak}</span>
-            <span>❤️ {currentProgress.hearts}</span>
+          <h1 className="text-lg font-black tracking-tighter cursor-default">LEARN</h1>
+          <div className="flex gap-4 items-center font-bold text-sm relative">
+            <div className="flex items-center gap-1">🔥 {currentProgress.streak}</div>
+            
+            {/* 하트 클릭 시 시간 표시 */}
+            <div 
+              className="flex items-center gap-1 cursor-pointer bg-gray-50 px-2 py-1 rounded-lg active:scale-95 transition-all"
+              onClick={(e) => { e.stopPropagation(); setShowHeartInfo(!showHeartInfo); }}
+            >
+              ❤️ {currentProgress.hearts}
+            </div>
+
+            {showHeartInfo && (
+              <div className="absolute top-10 right-0 bg-black text-white text-[10px] px-3 py-2 rounded-xl shadow-xl z-[110] whitespace-nowrap animate-in fade-in slide-in-from-top-1">
+                {currentProgress.hearts >= MAX_HEARTS 
+                  ? "하트가 가득 찼습니다!" 
+                  : `다음 충전까지: ${timeLeft}`}
+                <div className="absolute -top-1 right-4 w-2 h-2 bg-black rotate-45"></div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -50,13 +104,30 @@ export default function LearnPage() {
       <main className="max-w-md mx-auto px-4 pt-6">
         {units.map((unit) => (
           <section key={unit} className="mb-12">
-            <div className={`p-4 rounded-xl mb-8 border transition-all ${
-              unit > currentProgress.unit ? "bg-gray-50 border-gray-100 text-gray-300" : "bg-black border-black text-white"
-            }`}>
+            {/* 유닛 헤더 - 클릭 시 잠금 메시지 */}
+            <div 
+              onClick={(e) => {
+                if (unit > currentProgress.unit) {
+                  e.stopPropagation();
+                  setActiveTooltip(`unit-${unit}`);
+                }
+              }}
+              className={`p-4 rounded-xl mb-8 border transition-all relative cursor-pointer ${
+                unit > currentProgress.unit ? "bg-gray-50 border-gray-100 text-gray-300" : "bg-black border-black text-white"
+              }`}
+            >
               <h2 className="text-[10px] font-black opacity-70">UNIT {unit}</h2>
               <p className="text-base font-black italic">
                 {unit > currentProgress.unit ? "Locked Unit" : `Essential Vocab #${unit}`}
               </p>
+              
+              {/* 유닛 잠금 말풍선 */}
+              {activeTooltip === `unit-${unit}` && (
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-[11px] px-3 py-1 rounded-lg font-bold z-50 animate-in zoom-in">
+                  아직 잠겨있습니다
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-500 rotate-45"></div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col items-center gap-4">
@@ -64,11 +135,9 @@ export default function LearnPage() {
                 const isLocked = unit > currentProgress.unit || (unit === currentProgress.unit && chapter > currentProgress.chapter);
                 const chapterKey = `${unit}-${chapter}`;
                 
-                // 지그재그 좌표
                 const offsets = [0, 25, 45, 25, 0, -25, -45, -25];
                 const translateX = offsets[idx % offsets.length];
 
-                // 모드 판별
                 const isReview = (idx + 1) % 5 === 0;
                 const modeName = isReview ? "복습 도전" : (idx % 2 === 0 ? "단어 학습" : "실력 테스트");
                 const modeQuery = isReview ? "review" : (idx % 2 === 0 ? "learn" : "test");
@@ -76,28 +145,28 @@ export default function LearnPage() {
                 return (
                   <div key={chapterKey} style={{ transform: `translateX(${translateX}px)` }} className="relative">
                     
-                    {/* 💬 말풍선 (Tooltip) */}
-                    {activeTooltip === chapterKey && !isLocked && (
+                    {/* 💬 말풍선 로직 (학습/테스트 vs 잠금) */}
+                    {activeTooltip === chapterKey && (
                       <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-[90] animate-in fade-in zoom-in duration-150">
-                        <div className="bg-black text-white text-[11px] font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex flex-col items-center">
-                          {modeName}
-                          <div className="w-2 h-2 bg-black rotate-45 -mb-2 mt-1"></div>
+                        <div className={`${isLocked ? "bg-gray-400" : "bg-black"} text-white text-[11px] font-black px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl flex flex-col items-center`}>
+                          {isLocked ? "잠겨있습니다" : modeName}
+                          <div className={`w-2 h-2 ${isLocked ? "bg-gray-400" : "bg-black"} rotate-45 -mb-2 mt-1`}></div>
                         </div>
                       </div>
                     )}
 
-                    {isLocked ? (
-                      <div className="w-12 h-12 rounded-full bg-gray-50 border-b-4 border-gray-200 flex items-center justify-center text-gray-300">
-                        <span className="text-xs">🔒</span>
-                      </div>
-                    ) : (
-                      <div 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveTooltip(activeTooltip === chapterKey ? null : chapterKey);
-                        }}
-                        className="relative cursor-pointer"
-                      >
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveTooltip(activeTooltip === chapterKey ? null : chapterKey);
+                      }}
+                      className="relative cursor-pointer"
+                    >
+                      {isLocked ? (
+                        <div className="w-12 h-12 rounded-full bg-gray-50 border-b-4 border-gray-200 flex items-center justify-center text-gray-300">
+                          <span className="text-xs">🔒</span>
+                        </div>
+                      ) : (
                         <div className={`
                           w-12 h-12 rounded-full flex items-center justify-center 
                           text-sm font-black border-b-4 transition-all active:translate-y-0.5 active:border-b-0
@@ -107,16 +176,16 @@ export default function LearnPage() {
                         `}>
                           {isReview ? "★" : chapter}
                         </div>
-                        
-                        {/* 말풍선이 열려있을 때만 '시작' 버튼 노출 (선택 시 이동) */}
-                        {activeTooltip === chapterKey && (
-                          <Link 
-                            href={`/learn/quiz/${unit}?chapter=${chapter}&mode=${modeQuery}`}
-                            className="absolute inset-0 z-10"
-                          />
-                        )}
-                      </div>
-                    )}
+                      )}
+
+                      {/* 열린 챕터이면서 말풍선이 떠있을 때만 이동 링크 활성화 */}
+                      {activeTooltip === chapterKey && !isLocked && (
+                        <Link 
+                          href={`/learn/quiz/${unit}?chapter=${chapter}&mode=${modeQuery}`}
+                          className="absolute inset-0 z-10"
+                        />
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -125,11 +194,10 @@ export default function LearnPage() {
         ))}
       </main>
 
-      {/* 하단 네비게이션 */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-gray-100 py-3 z-[100]">
-        <div className="max-w-md mx-auto flex justify-around items-center">
-          <button className="text-xl">🏠</button>
-          <button className="text-xl opacity-20">👤</button>
+        <div className="max-w-md mx-auto flex justify-around items-center opacity-70">
+          <button className="text-xl grayscale-0">🏠</button>
+          <button className="text-xl">👤</button>
         </div>
       </nav>
     </div>
